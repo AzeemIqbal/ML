@@ -1,0 +1,57 @@
+---
+title: "WLE Machine Learning Project"
+author: "Azeem Iqbal"
+date: "23/05/2015"
+output: html_document
+---
+
+This is a short project based on the Weight Lifting Exercise Dataset that can be found here: http://groupware.les.inf.puc-rio.br/har
+
+Given our training and testing data sets, the task is to create a classifier model that accurately predicts which type of dumbbell curl was being performed based on data taken from various accelerometers on their bodies.
+
+First, we load the libraries we will be requiring and clean up the data. For reproducibility, I will also set the seed. I remove any columns that have NA values in them, next I have decided to remove all statistical measurements such as skew, avg and var from the data set as they are not useful for building a prediction model, due to the fact that we do not have values for them for every row in our data set. 
+
+```{r}
+library(caret)
+library(randomForest)
+set.seed(12345)
+
+data <- read.csv('pml-training.csv')
+
+data1 <- data[, colSums(is.na(data))==0]
+data1 <- data1[, !grepl('kurtosis',colnames(data1))]
+data1 <- data1[, !grepl('skew',colnames(data1))]
+data1 <- data1[, !grepl('ampl',colnames(data1))]
+data1 <- data1[, !grepl('min',colnames(data1))]
+data1 <- data1[, !grepl('max',colnames(data1))]
+data1 <- data1[, !grepl('window',colnames(data1))]
+data1 <- data1[, !grepl('X',colnames(data1))]
+data1 <- data1[, !grepl('time',colnames(data1))]
+data1 <- data1[, !grepl('name',colnames(data1))]
+head(data1)
+
+```
+
+Now that we are left with a tidy set to build our model on, I have decided to split my training data set further into a smaller training  set and a validation set. Then I create my classifying model using the randomForest function from the randomForest package. The randomForest algorithm uses bagging, which is similar to bootstrapping, to create multiple models and then averages them to try to reduce variance and improve accuracy.
+
+
+
+```{r}
+intrain <- createDataPartition(data1$classe, p = 0.7, list=FALSE)
+train <- data1[intrain,]
+val <- data1[-intrain,]
+rf <- randomForest(classe ~ ., data = train)
+rf
+```
+
+As you can see, the rf model we have fitting has a very high accuracy. Normally one would think this is due to overfitting, but having read through the information about the dataset, I found out that these measurements were taken with a professional weight lifter to coach the subjects of the experiments. I believe that the coach made the subjects greatly overexaggerate the incorrect lifts, much more so than would occur in a natural setting with a normal person performing a lift incorrectly (due to lack of knowledge or inexperience).
+    
+    
+     
+Testing our model on the validation set yields the following results:
+```{r}
+confusionMatrix(predict(rf,val), val$classe)
+1-confusionMatrix(predict(rf,val), val$classe)$overall[1]
+```
+
+Our model is still very accurate with our validation set, also our out of sample error rate is similar to that of the OOB error rate predicted by the model when we created it.
